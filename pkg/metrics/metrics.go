@@ -9,29 +9,29 @@ import (
 )
 
 var (
-	urlUp         *prometheus.GaugeVec
-	urlResponseMs *prometheus.GaugeVec
+	UrlUp         *prometheus.GaugeVec
+	UrlResponseMs *prometheus.GaugeVec
 )
 
 func init() {
-	urlUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	UrlUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "sample",
 		Subsystem: "external",
 		Name:      "url_up",
 		Help:      "Boolean status of whether a URL is considered up or down.",
 	}, []string{"url"})
-	urlResponseMs = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	UrlResponseMs = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "sample",
 		Subsystem: "external",
 		Name:      "url_response_ms",
 		Help:      "Response time in milliseconds it took for the URL to respond.",
 	}, []string{"url"})
-	prometheus.MustRegister(urlUp, urlResponseMs)
+	prometheus.MustRegister(UrlUp, UrlResponseMs)
 	http.Handle("/metrics", promhttp.Handler())
 }
 
 func RegisterPingResult(url string, up bool, responseTime time.Duration) {
-	urlUp.With(prometheus.Labels{
+	UrlUp.With(prometheus.Labels{
 		"url": url,
 	}).Set(func() float64 {
 		if up {
@@ -40,7 +40,7 @@ func RegisterPingResult(url string, up bool, responseTime time.Duration) {
 			return 0
 		}
 	}())
-	urlResponseMs.With(prometheus.Labels{
+	UrlResponseMs.With(prometheus.Labels{
 		"url": url,
 	}).Set(float64(responseTime.Milliseconds()))
 }

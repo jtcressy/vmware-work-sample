@@ -3,20 +3,22 @@ package synthetics
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+
 	// "strings"
 	"time"
 
 	"github.com/jtcressy/vmware-work-sample/pkg/metrics"
 )
 
-func NewPinger(opts Options) (*Pinger, error) {
+func NewPinger(opts *Options) (*Pinger, error) {
 
 	opts.defaults()
 
 	pingerContext := &PingerContext{
+		Context:      context.Background(),
 		URLs:         opts.TestUrls,
 		PingInterval: opts.FetchInterval,
 		BindAddr:     opts.BindAddress,
@@ -24,21 +26,41 @@ func NewPinger(opts Options) (*Pinger, error) {
 
 	return &Pinger{
 		ctx:         pingerContext,
-		pingResults: make(map[string]PingResult),
+		pingResults: make(map[string]*PingResult),
 	}, nil
 }
 
 type Pinger struct {
 	ctx         *PingerContext
-	pingResults map[string]PingResult
+	pingResults map[string]*PingResult
+}
+
+func (p *Pinger) GetContext() *PingerContext {
+	return p.ctx
 }
 
 func (p *Pinger) Start(ctx context.Context) error {
+	log.Printf("Starting pinger with status server on %s\n", p.ctx.BindAddr)
 	http.Handle("/status", p)
+	srv := &http.Server{
+		Addr:    p.ctx.BindAddr,
+		Handler: http.DefaultServeMux,
+	}
 
 	go p.startPing(ctx)
-	http.ListenAndServe(p.ctx.BindAddr, nil)
-
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		} else {
+			log.Printf("Server stopped: %s\n", err)
+		}
+	}()
+	<-ctx.Done()
+	log.Println("Shutting down pinger")
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server Shutdown Failed:%+v", err)
+	}
+	<-ctx.Done()
 	return nil
 }
 
@@ -52,28 +74,7 @@ func (p *Pinger) startPing(ctx context.Context) {
 			case <-done:
 				return
 			case <-ticker.C:
-				// do url fetches
-				fmt.Printf("Running Pings at %v\n", time.Now())
-				for _, u := range p.ctx.URLs {
-					start := time.Now()
-					r, err := http.Get(u.String())
-					if err != nil {
-						fmt.Println(err)
-					}
-					elapsed := time.Since(start)
-
-					pr := PingResult{
-						Url:          u,
-						Up:           bool(200 <= r.StatusCode && r.StatusCode <= 299),
-						ResponseTime: ResponseTimeMs(elapsed),
-					}
-					p.pingResults[u.String()] = pr
-					metrics.RegisterPingResult(
-						pr.Url.String(),
-						pr.Up,
-						time.Duration(pr.ResponseTime),
-					)
-				}
+				p.PingAll()
 			}
 		}
 	}()
@@ -83,10 +84,40 @@ func (p *Pinger) startPing(ctx context.Context) {
 	done <- true
 }
 
+func (p *Pinger) PingAll() {
+	for _, u := range p.ctx.URLs {
+		log.Printf("Running ping for %s\n", u.String())
+		start := time.Now()
+		r, err := http.Get(u.String())
+		if err != nil {
+			log.Println(err)
+		}
+		elapsed := time.Since(start)
+
+		pr := &PingResult{
+			Url:          u,
+			Up:           bool(200 <= r.StatusCode && r.StatusCode <= 299),
+			ResponseTime: elapsed,
+		}
+		p.pingResults[u.String()] = pr
+		metrics.RegisterPingResult(
+			pr.Url.String(),
+			pr.Up,
+			pr.ResponseTime,
+		)
+	}
+}
+
 func (p *Pinger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	j, err := json.MarshalIndent(p.pingResults, "", "    ")
+	j, err := func() ([]byte, error) {
+		if r.URL.Query().Get("pretty") == "true" {
+			return json.MarshalIndent(p.pingResults, "", "    ")
+		} else {
+			return json.Marshal(p.pingResults)
+		}
+	}()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		w.Write([]byte(err.Error()))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -98,52 +129,16 @@ func (p *Pinger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type PingResult struct {
 	Url          *url.URL      `json:"-"`
 	Up           bool          `json:"up"`
-	ResponseTime ResponseTimeMs `json:"responseTimeMs"`
+	ResponseTime time.Duration `json:"response_time_ms"`
 }
 
-type ResponseTimeMs time.Duration
-
-func (rtm *ResponseTimeMs) MarshalJSON() ([]byte, error) {
-	fmt.Println("marshalling")
-	rt := time.Duration(*rtm)
-	return json.Marshal(rt.String())
+func (pr *PingResult) MarshalJSON() ([]byte, error) {
+	type Alias PingResult
+	return json.Marshal(&struct {
+		ResponseTime int64 `json:"response_time_ms"`
+		*Alias
+	}{
+		ResponseTime: pr.ResponseTime.Milliseconds(),
+		Alias:        (*Alias)(pr),
+	})
 }
-// func (pr *PingResult) UnmarshalJSON(j []byte) error {
-// 	var rawStrings map[string]string
-// 	err := json.Unmarshal(j, &rawStrings)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	for k, v := range rawStrings {
-// 		if strings.ToLower(k) == "url" {
-// 			pr.Url, err = url.Parse(v)
-// 			if err != nil {
-// 				return err
-// 			}
-// 		}
-// 		if strings.ToLower(k) == "up" {
-// 			pr.Up = bool(v == "1" || v == "true")
-// 		}
-// 		if k == "responseTimeMs" {
-// 			pr.ResponseTime, err = time.ParseDuration(v)
-// 			if err != nil {
-// 				return err
-// 			}
-// 		}
-// 	}
-// 	return nil
-// }
-
-// func (pr *PingResult) MarshalJSON() ([]byte, error) {
-// 	basicPingResult := struct {
-// 		Url          string `json:"url"`
-// 		Up           bool   `json:"up"`
-// 		ResponseTime int    `json:"responseTimeMs"`
-// 	}{
-// 		Url:          pr.Url.RequestURI(),
-// 		Up:           pr.Up,
-// 		ResponseTime: int(pr.ResponseTime.Milliseconds()),
-// 	}
-// 	return json.Marshal(basicPingResult)
-// }
