@@ -1,0 +1,80 @@
+# .goreleaser.yml
+project_name: vmware-work-sample
+release:
+  github:
+    owner: jtcressy
+    name: vmware-work-sample
+builds:
+- binary: vmware-work-sample
+  goos:
+  - linux
+  goarch:
+  - amd64
+  - arm64
+  - arm
+  goarm:
+  - 7
+  main: .
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^misc:'
+dockers:
+- image_templates:
+  - "ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-amd64"
+  dockerfile: Dockerfile.release
+  use: buildx
+  goarch: amd64
+  goos: linux
+  build_flag_templates:
+  - --platform
+  - linux/amd64
+  - --label=org.opencontainers.image.version={{ .Version }}
+  - --label=org.opencontainers.image.revision={{ .FullCommit }}
+- image_templates:
+  - "ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-arm64"
+  dockerfile: Dockerfile.release
+  use: buildx
+  goarch: arm64
+  goos: linux
+  build_flag_templates:
+  - --platform
+  - linux/arm64
+  - --label=org.opencontainers.image.version={{ .Version }}
+  - --label=org.opencontainers.image.revision={{ .FullCommit }}
+- image_templates:
+  - "ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-arm32v7"
+  dockerfile: Dockerfile.release
+  use: buildx
+  goarch: arm
+  goarm: "7"
+  goos: linux
+  build_flag_templates:
+  - --platform
+  - linux/arm/v7
+  - --label=org.opencontainers.image.version={{ .Version }}
+  - --label=org.opencontainers.image.revision={{ .FullCommit }}
+docker_manifests:
+  - name_template: ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}
+    image_templates:
+    - ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-amd64
+    - ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-arm64
+    - ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-arm32v7
+  - name_template: ghcr.io/jtcressy/vmware-work-sample:latest
+    image_templates:
+    - ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-amd64
+    - ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-arm64
+    - ghcr.io/jtcressy/vmware-work-sample:{{ .Version }}-arm32v7
+nfpms:
+- maintainer: Joel Cressy <joel@jtcressy.net>
+  description: VMware Work Sample to Demonstrate My Skills
+  homepage: https://github.com/jtcressy/vmware-work-sample
+  license: GPL

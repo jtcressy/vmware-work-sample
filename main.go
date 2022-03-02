@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 )
 
 var (
+	version string = "dev"
 	options synthetics.Options
 )
 
@@ -36,6 +38,8 @@ func main() {
 		"The address the webserver binds to.",
 	)
 	flag.Parse()
+
+	log.Println(os.Args[0], version, runtime.GOOS, runtime.GOARCH)
 
 	pinger, err := synthetics.NewPinger(&options)
 	if err != nil {
