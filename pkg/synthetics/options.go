@@ -1,6 +1,7 @@
 package synthetics
 
 import (
+	"log"
 	"net/url"
 	"time"
 )
@@ -32,7 +33,11 @@ type Options struct {
 
 func (o *Options) defaults() {
     if len(o.TestUrls) < 1 {
-        o.TestUrls.Set("https://httpstat.us/200")
-        o.TestUrls.Set("https://httpstat.us/503")
+        if err := o.TestUrls.Set("https://httpstat.us/200"); err != nil {
+            log.Fatalln(err)
+        }
+        if err := o.TestUrls.Set("https://httpstat.us/503"); err != nil {
+            log.Fatalln(err)
+        }
     }
 }

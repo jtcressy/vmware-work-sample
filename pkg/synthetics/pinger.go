@@ -118,11 +118,15 @@ func (p *Pinger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	if err != nil {
 		log.Println(err)
-		w.Write([]byte(err.Error()))
+		if _,err := w.Write([]byte(err.Error())); err != nil {
+			log.Println(err)
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	} else {
-		w.Write(j)
+		if _,err := w.Write(j); err != nil {
+			log.Println(err)
+		}
 	}
 }
 
