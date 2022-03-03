@@ -9,7 +9,7 @@ COPY . .
 
 ARG TARGETARCH
 
-RUN GOARCH=$TARGETARCH go install
+RUN CGO_ENABLED=0 GOARCH=$TARGETARCH go install
 
 FROM alpine:3.15
 COPY --from=build-env /go/bin/* /usr/local/bin
