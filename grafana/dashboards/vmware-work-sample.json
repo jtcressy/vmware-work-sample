@@ -80,7 +80,7 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 12,
+        "w": 24,
         "x": 0,
         "y": 0
       },
@@ -159,9 +159,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
+        "w": 24,
+        "x": 0,
+        "y": 9
       },
       "id": 4,
       "options": {
@@ -211,6 +211,6 @@
   "timezone": "",
   "title": "vmware-work-sample",
   "uid": "lHQ71FYnk",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
