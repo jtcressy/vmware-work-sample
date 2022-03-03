@@ -24,7 +24,7 @@ func main() {
 		&options.FetchInterval,
 		"fetch-interval",
 		defaultFetchInterval,
-		"How often to ping URL endpoints (default: 30s)",
+		"How often to ping URL endpoints",
 	)
 	flag.Var(
 		&options.TestUrls,
