@@ -55,6 +55,12 @@ example:
 }
 ```
 
+## Sample Dashboard
+
+A sample grafana dashboard can be found at `/grafana/dashboards`
+
+Additionally, screenshots of prometheus and grafana can be seen at `/screenshots`
+
 # Usage
 
 ## Container image
