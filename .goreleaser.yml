@@ -6,6 +6,8 @@ release:
     name: vmware-work-sample
 builds:
 - binary: vmware-work-sample
+  env:
+  - CGO_ENABLED=0
   goos:
   - linux
   goarch:
